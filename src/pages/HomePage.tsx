@@ -387,7 +387,7 @@ export function HomePage() {
                   <Link 
                     to="/campaigns" 
                     className="block"
-                    onClick={(e) => handleCampaignClick(campaign.id)}
+                    onClick={() => handleCampaignClick(campaign.id)}
                   >
                     <h3 className="text-lg font-semibold text-center hover:text-blue-600 transition-colors pr-8">
                       {campaign.name}

@@ -1,135 +1,209 @@
 # Influencer Post Tracker
 
-A modern React application built with Vite, TypeScript, Tailwind CSS, and shadcn/ui components. This project demonstrates a clean table-based interface for tracking influencer data and is configured for deployment to GitHub Pages.
+A comprehensive React application for tracking influencer campaigns, posts, and performance metrics. Built with modern technologies and featuring a complete database backend with Supabase.
 
-## Features
+## 🚀 Live Demo
 
-- 🚀 **Modern Stack**: React 18 + TypeScript + Vite
-- 🎨 **Beautiful UI**: shadcn/ui components with Tailwind CSS
-- 📊 **Table Components**: Fully featured data tables with search functionality
-- 📱 **Responsive Design**: Mobile-friendly interface
-- 🔍 **Search & Filter**: Real-time search across influencer data
-- 🚀 **GitHub Pages Ready**: Automated deployment workflow
+[View Live Application](https://deviro.github.io/influencer_post_tracker/)
 
-## Tech Stack
+## ✨ Features
 
-- **React 18** - Modern React with hooks
-- **TypeScript** - Type-safe development
-- **Vite** - Fast build tool and dev server
-- **Tailwind CSS** - Utility-first CSS framework
-- **shadcn/ui** - High-quality React components
-- **GitHub Actions** - Automated deployment
+- 📊 **Campaign Management**: Create, edit, and delete marketing campaigns
+- 👥 **Influencer Tracking**: Manage influencer profiles and contact information
+- 🎥 **Video Analytics**: Track video performance across multiple platforms
+- 📈 **Real-time Metrics**: Automatic calculation of views, engagement, and statistics
+- 🔍 **Advanced Filtering**: Search and filter by status, platform, and keywords
+- 📱 **Responsive Design**: Mobile-friendly interface with modern UI
+- 🗄️ **Database Integration**: Full CRUD operations with Supabase backend
+- 🚀 **GitHub Pages Deployment**: Automated CI/CD pipeline
 
-## Getting Started
+## 🛠️ Tech Stack
 
-### Prerequisites
+- **Frontend**: React 18, TypeScript, Vite
+- **UI Framework**: Tailwind CSS, shadcn/ui components
+- **Database**: Supabase (PostgreSQL)
+- **State Management**: Zustand
+- **Validation**: Zod schemas
+- **Deployment**: GitHub Pages with GitHub Actions
+- **Development**: Cursor AI-assisted development
 
-- Node.js 18+ 
-- npm or yarn
+## 📋 Prerequisites
 
-### Installation
+Before you begin, ensure you have:
 
-1. Clone the repository:
+- Node.js 18+ installed
+- npm or yarn package manager
+- A Supabase account (free tier available)
+- Git installed on your machine
+
+## 🚀 Step-by-Step Launch Tutorial
+
+### Step 1: Clone and Setup Project
+
 ```bash
-git clone https://github.com/yourusername/influencer_post_tracker.git
+# Clone the repository
+git clone https://github.com/deviro/influencer_post_tracker.git
 cd influencer_post_tracker
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 npm install
 ```
 
-3. Start the development server:
-```bash
-npm run dev
+### Step 2: Supabase Database Setup
+
+#### 2.1 Create Supabase Project
+
+1. Go to [supabase.com](https://supabase.com) and sign up/login
+2. Click "New Project"
+3. Choose your organization
+4. Enter project details:
+   - **Name**: `influencer-tracker`
+   - **Database Password**: Generate a strong password (save it!)
+   - **Region**: Choose closest to your users
+5. Click "Create new project"
+6. Wait for the project to be ready (2-3 minutes)
+
+#### 2.2 Configure Database Schema
+
+1. In your Supabase dashboard, go to **SQL Editor**
+2. Copy the contents of `supabase_schema.sql` from this repository
+3. Paste it into the SQL Editor and click **Run**
+4. This will create all necessary tables, relationships, and sample data
+
+#### 2.3 Disable Row Level Security (for development)
+
+1. In SQL Editor, run the contents of `disable_rls.sql`:
+```sql
+-- Disable RLS for development
+ALTER TABLE campaigns DISABLE ROW LEVEL SECURITY;
+ALTER TABLE influencers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE videos DISABLE ROW LEVEL SECURITY;
 ```
 
-4. Open [http://localhost:5173](http://localhost:5173) in your browser.
+#### 2.4 Get Supabase Credentials
 
-## Available Scripts
+1. Go to **Settings** → **API**
+2. Copy your **Project URL** and **anon public key**
+3. Create a `.env.local` file in your project root:
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build locally
-- `npm run lint` - Run ESLint
+```env
+VITE_SUPABASE_URL=your_project_url_here
+VITE_SUPABASE_ANON_KEY=your_anon_key_here
+```
 
-## Project Structure
+### Step 3: Local Development
+
+```bash
+# Start the development server
+npm run dev
+
+# Open your browser to http://localhost:5173
+```
+
+You should now see the application with sample data loaded from Supabase!
+
+### Step 4: Verify Database Connection
+
+1. Navigate to the **Campaigns** page
+2. Try creating a new campaign
+3. Add influencers and videos
+4. Check that data persists after page refresh
+5. Verify data appears in your Supabase dashboard under **Table Editor**
+
+### Step 5: Deploy to GitHub Pages
+
+#### 5.1 Enable GitHub Pages
+
+1. Go to your repository on GitHub
+2. Navigate to **Settings** → **Pages**
+3. Under **Source**, select **GitHub Actions**
+
+#### 5.2 Update Environment Variables
+
+1. Go to **Settings** → **Secrets and variables** → **Actions**
+2. Add your Supabase credentials as repository secrets:
+   - `VITE_SUPABASE_URL`: Your Supabase project URL
+   - `VITE_SUPABASE_ANON_KEY`: Your Supabase anon key
+
+#### 5.3 Deploy
+
+```bash
+# Build and deploy
+git add .
+git commit -m "Initial deployment setup"
+git push origin main
+```
+
+The GitHub Action will automatically build and deploy your app. Check the **Actions** tab to monitor progress.
+
+### Step 6: Production Configuration
+
+#### 6.1 Enable Row Level Security (Production)
+
+For production, enable RLS and create proper policies:
+
+```sql
+-- Enable RLS
+ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE influencers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
+
+-- Add policies as needed for your authentication setup
+```
+
+#### 6.2 Custom Domain (Optional)
+
+1. In your repository, create a `CNAME` file in the `public/` directory
+2. Add your custom domain name
+3. Configure DNS settings with your domain provider
+
+## 📁 Project Structure
 
 ```
 src/
 ├── components/
-│   └── ui/           # shadcn/ui components
+│   ├── ui/                 # shadcn/ui components
+│   ├── ErrorBoundary.tsx   # Error handling
+│   └── ...                 # Feature components
 ├── lib/
-│   └── utils.ts      # Utility functions
-├── App.tsx           # Main application component
-├── main.tsx          # Application entry point
-└── index.css         # Global styles with Tailwind
+│   ├── supabase.ts         # Database client
+│   ├── schemas.ts          # Zod validation schemas
+│   ├── database.types.ts   # TypeScript types
+│   └── utils.ts            # Utility functions
+├── pages/
+│   ├── HomePage.tsx        # Campaign overview
+│   └── CampaignsPage.tsx   # Detailed campaign view
+├── store/
+│   └── campaignStore.ts    # Zustand state management
+└── App.tsx                 # Main application
 ```
 
-## Deployment to GitHub Pages
-
-This project is configured for automatic deployment to GitHub Pages using GitHub Actions.
-
-### Setup Instructions:
-
-1. **Enable GitHub Pages**:
-   - Go to your repository settings
-   - Navigate to "Pages" section
-   - Set source to "GitHub Actions"
-
-2. **Push to main branch**:
-   - The workflow will automatically trigger on push to main
-   - Your app will be available at: `https://yourusername.github.io/influencer_post_tracker/`
-
-### Manual Deployment:
+## 🔧 Available Scripts
 
 ```bash
-npm run build
-# Upload the dist/ folder to your hosting provider
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run preview      # Preview production build
+npm run lint         # Run ESLint
 ```
 
-## Adding New Components
+## 📊 Database Schema
 
-To add more shadcn/ui components:
+The application uses three main tables:
 
-```bash
-npx shadcn@latest add [component-name]
-```
+- **campaigns**: Campaign information and metadata
+- **influencers**: Influencer profiles linked to campaigns
+- **videos**: Individual video posts with performance metrics
 
-Popular components for data applications:
-- `dialog` - Modal dialogs
-- `form` - Form components
-- `select` - Dropdown selects
-- `badge` - Status badges
-- `pagination` - Table pagination
+See `supabase_schema.sql` for the complete schema definition.
 
-## Customization
 
-### Tailwind Configuration
-Edit `tailwind.config.js` to customize your design system.
+## 📝 Development Notes
 
-### shadcn/ui Theme
-Modify `src/index.css` to adjust the color scheme and styling.
+**Development Time**: Approximately 7 hours of focused development
 
-### Adding New Features
-The app structure supports easy extension:
-- Add new data types in the interfaces
-- Create new table components
-- Implement CRUD operations
-- Add data persistence
+**Tools Used**: 
+- Primary development with [Cursor](https://cursor.sh/) AI-assisted IDE
+- Extensive use of AI pair programming for rapid feature development
+- Modern React patterns and TypeScript best practices
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## License
-
-MIT License - feel free to use this project as a starting point for your own applications.
-
----
-
-Built with ❤️ using React, TypeScript, and shadcn/ui
