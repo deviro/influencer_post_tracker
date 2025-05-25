@@ -1163,7 +1163,15 @@ export function CampaignsPage() {
                 {campaignName}
               </CardTitle>
               
-              <div></div> {/* Empty div for spacing */}
+              {/* Empty div for spacing */}
+              <Button
+                variant="outline"
+                disabled={true}
+                className="flex items-center gap-2 invisible"
+              >
+                <Home className="h-4 w-4" />
+                Back to Home
+              </Button> 
             </div>
           </CardHeader>
           <CardContent>
