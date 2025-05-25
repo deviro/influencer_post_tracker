@@ -71,6 +71,7 @@ export function CampaignsPage() {
   const { toast } = useToast()
 
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<VideoStatus | 'All'>('All')
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [editingFields, setEditingFields] = useState<{[key: string]: boolean}>({})
   
@@ -781,10 +782,26 @@ export function CampaignsPage() {
 
   const filteredRecords = (() => {
     try {
-      return influencers.filter(record =>
-        record.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.platforms?.some(platform => platform.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
+      return influencers.filter(record => {
+        // Text search filter
+        const matchesSearch = record.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             record.platforms?.some(platform => platform.toLowerCase().includes(searchTerm.toLowerCase()))
+        
+        // Status filter - check if influencer has any videos with the selected status
+        const matchesStatus = statusFilter === 'All' || 
+                             record.videos?.some(video => video.status === statusFilter)
+        
+        return matchesSearch && matchesStatus
+      }).map(record => {
+        // If status filter is active, only show videos that match the status
+        if (statusFilter !== 'All') {
+          return {
+            ...record,
+            videos: record.videos?.filter(video => video.status === statusFilter) || []
+          }
+        }
+        return record
+      })
     } catch (error) {
       console.error('Error filtering records:', error)
       toast({
@@ -795,6 +812,18 @@ export function CampaignsPage() {
       return []
     }
   })()
+
+  // Auto-expand all rows when filtering is active
+  useEffect(() => {
+    if (searchTerm || statusFilter !== 'All') {
+      // Expand all filtered records
+      const allFilteredIds = new Set(filteredRecords.map(record => record.id))
+      setExpandedRows(allFilteredIds)
+    } else {
+      // Clear expanded rows when no filters are active
+      setExpandedRows(new Set())
+    }
+  }, [searchTerm, statusFilter, filteredRecords])
 
   const formatViews = (count: number) => {
     if (count >= 1000000) {
@@ -1057,14 +1086,67 @@ export function CampaignsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex justify-between items-center mb-6">
-              <Input
-                placeholder="Search by username or platform..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
+              <div className="flex items-center gap-4">
+                <Input
+                  placeholder="Search by username or platform..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm"
+                />
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value: VideoStatus | 'All') => setStatusFilter(value)}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by video status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Statuses</SelectItem>
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={handleAddInfluencer}>Add New Influencer</Button>
             </div>
+            
+            {/* Active filters indicator */}
+            {(searchTerm || statusFilter !== 'All') && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-blue-800">
+                    <span className="font-medium">Active filters:</span>
+                    {searchTerm && (
+                      <span className="bg-blue-100 px-2 py-1 rounded">
+                        Search: "{searchTerm}"
+                      </span>
+                    )}
+                    {statusFilter !== 'All' && (
+                      <span className="bg-blue-100 px-2 py-1 rounded">
+                        Status: {statusFilter}
+                      </span>
+                    )}
+                    <span className="text-blue-600">
+                      ({filteredRecords.length} of {influencers.length} shown)
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm('')
+                      setStatusFilter('All')
+                    }}
+                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+                  >
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+            )}
             
             <Table>
               <TableCaption>
@@ -1449,9 +1531,26 @@ export function CampaignsPage() {
             
             {filteredRecords.length === 0 && !loading && !error && (
               <div className="text-center py-8">
-                {searchTerm ? (
-                  <div className="text-gray-500">
-                    No records found matching your search: "{searchTerm}"
+                {searchTerm || statusFilter !== 'All' ? (
+                  <div className="space-y-2">
+                    <p className="text-gray-500">
+                      No influencers found matching your filters
+                    </p>
+                    <div className="text-sm text-gray-400">
+                      {searchTerm && <span>Search: "{searchTerm}"</span>}
+                      {searchTerm && statusFilter !== 'All' && <span> • </span>}
+                      {statusFilter !== 'All' && <span>Status: {statusFilter}</span>}
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setSearchTerm('')
+                        setStatusFilter('All')
+                      }}
+                      className="mt-2"
+                    >
+                      Clear Filters
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-3">
