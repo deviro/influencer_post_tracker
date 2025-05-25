@@ -1477,7 +1477,7 @@ export function CampaignsPage() {
                                                 href={video.link} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
-                                                className="flex-1 text-blue-600 hover:text-blue-800 underline truncate block text-sm"
+                                                className="w-40 text-blue-600 hover:text-blue-800 underline truncate block text-sm"
                                                 title={video.link}
                                               >
                                                 {video.link}
@@ -1502,7 +1502,7 @@ export function CampaignsPage() {
                                             type="number"
                                             value={video.views}
                                             onChange={(e) => updateVideoField(video.id, 'views', parseInt(e.target.value) || 0)}
-                                            className="text-sm w-full h-6"
+                                            className="text-sm w-20 h-6 px-1"
                                             onBlur={() => toggleFieldEdit(record.id, video.id, 'views')}
                                             onKeyDown={(e) => {
                                               if (e.key === 'Enter' || e.key === 'Escape') {
@@ -1512,9 +1512,9 @@ export function CampaignsPage() {
                                             autoFocus
                                           />
                                         ) : (
-                                          <div className="flex items-center justify-start w-full h-6">
+                                          <div className="w-20 flex items-center justify-start h-6">
                                             <span 
-                                              className="flex-1 font-mono text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
+                                              className="font-mono text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
                                               onClick={() => toggleFieldEdit(record.id, video.id, 'views')}
                                             >
                                               {formatViews(video.views || 0)}
@@ -1594,13 +1594,13 @@ export function CampaignsPage() {
                                       </TableCell>
                                       
                                       {/* Posted On - click to edit */}
-                                      <TableCell className="w-28">
+                                      <TableCell className="w-32 p-0 flex justify-end">
                                         {isFieldEditing(record.id, video.id, 'posted_on') ? (
                                           <Input
                                             type="date"
                                             value={video.posted_on || ''}
                                             onChange={(e) => updateVideoField(video.id, 'posted_on', e.target.value)}
-                                            className="text-sm w-full h-6"
+                                            className="text-sm h-6 w-30 px-1"
                                             onBlur={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
                                             onKeyDown={(e) => {
                                               if (e.key === 'Enter' || e.key === 'Escape') {
@@ -1610,9 +1610,9 @@ export function CampaignsPage() {
                                             autoFocus
                                           />
                                         ) : (
-                                          <div className="w-full h-6 flex items-center gap-2">
+                                          <div className="w-32 h-6 flex items-center justify-end gap-2">
                                             <span 
-                                              className="flex-1 text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
+                                              className="w-24 text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
                                               onClick={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
                                             >
                                               {video.posted_on || 'Not set'}
