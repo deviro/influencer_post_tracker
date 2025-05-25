@@ -75,6 +75,9 @@ export function CampaignsPage() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [editingFields, setEditingFields] = useState<{[key: string]: boolean}>({})
   
+  // Track previous filter state to detect when filters are first applied
+  const [prevFiltersActive, setPrevFiltersActive] = useState(false)
+  
   // Video editing states
   const [isAddVideoDialogOpen, setIsAddVideoDialogOpen] = useState(false)
   const [selectedInfluencerId, setSelectedInfluencerId] = useState<string | null>(null)
@@ -815,15 +818,70 @@ export function CampaignsPage() {
 
   // Auto-expand all rows when filtering is active
   useEffect(() => {
-    if (searchTerm || statusFilter !== 'All') {
-      // Expand all filtered records
+    const filtersActive = Boolean(searchTerm || statusFilter !== 'All')
+    
+    // Only auto-expand when filters are first applied (transition from false to true)
+    if (filtersActive && !prevFiltersActive) {
       const allFilteredIds = new Set(filteredRecords.map(record => record.id))
-      setExpandedRows(allFilteredIds)
-    } else {
-      // Clear expanded rows when no filters are active
-      setExpandedRows(new Set())
+      setExpandedRows(prev => {
+        const newExpanded = new Set(prev)
+        // Add all filtered records to expanded set
+        allFilteredIds.forEach(id => newExpanded.add(id))
+        return newExpanded
+      })
     }
-  }, [searchTerm, statusFilter, filteredRecords])
+    
+    // Update previous filter state
+    setPrevFiltersActive(filtersActive)
+  }, [searchTerm, statusFilter, filteredRecords, prevFiltersActive])
+
+  // Calculate campaign totals
+  const campaignTotals = (() => {
+    try {
+      const totalInfluencers = influencers.length
+      const totalVideos = influencers.reduce((sum, influencer) => sum + (influencer.videos?.length || 0), 0)
+      const totalViews = influencers.reduce((sum, influencer) => sum + (influencer.total_views || 0), 0)
+      const totalViewsNow = influencers.reduce((sum, influencer) => sum + (influencer.views_now || 0), 0)
+      
+      // Calculate overall median views
+      const allViewCounts = influencers.flatMap(influencer => 
+        influencer.videos?.map(video => video.views || 0) || []
+      ).sort((a, b) => a - b)
+      
+      const overallMedianViews = allViewCounts.length > 0 
+        ? allViewCounts.length % 2 === 0
+          ? (allViewCounts[allViewCounts.length / 2 - 1] + allViewCounts[allViewCounts.length / 2]) / 2
+          : allViewCounts[Math.floor(allViewCounts.length / 2)]
+        : 0
+
+      // Status distribution
+      const statusCounts = influencers.reduce((acc, influencer) => {
+        influencer.videos?.forEach(video => {
+          acc[video.status] = (acc[video.status] || 0) + 1
+        })
+        return acc
+      }, {} as Record<string, number>)
+
+      return {
+        totalInfluencers,
+        totalVideos,
+        totalViews,
+        totalViewsNow,
+        overallMedianViews,
+        statusCounts
+      }
+    } catch (error) {
+      console.error('Error calculating campaign totals:', error)
+      return {
+        totalInfluencers: 0,
+        totalVideos: 0,
+        totalViews: 0,
+        totalViewsNow: 0,
+        overallMedianViews: 0,
+        statusCounts: {}
+      }
+    }
+  })()
 
   const formatViews = (count: number) => {
     if (count >= 1000000) {
@@ -1085,6 +1143,61 @@ export function CampaignsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Campaign Totals Section */}
+            <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">Campaign Overview</h3>
+              
+              {/* Main Layout: 4 cards on left, 1 large card on right */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left side: 4 metric cards in 2x2 grid */}
+                <div className="lg:col-span-2">
+                  <div className="grid grid-cols-2 gap-4 h-full">
+                    <div className="bg-white p-6 rounded-lg shadow-sm border h-full flex flex-col justify-center items-center">
+                      <div className="text-4xl font-bold text-blue-600 mb-2">{campaignTotals.totalInfluencers}</div>
+                      <div className="text-base text-gray-600 text-center">Influencers</div>
+                    </div>
+                    
+                    <div className="bg-white p-6 rounded-lg shadow-sm border h-full flex flex-col justify-center items-center">
+                      <div className="text-4xl font-bold text-green-600 mb-2">{campaignTotals.totalVideos}</div>
+                      <div className="text-base text-gray-600 text-center">Total Videos</div>
+                    </div>
+                    
+                    <div className="bg-white p-6 rounded-lg shadow-sm border h-full flex flex-col justify-center items-center">
+                      <div className="text-4xl font-bold text-purple-600 mb-2">{formatViews(campaignTotals.totalViews)}</div>
+                      <div className="text-base text-gray-600 text-center">Total Views</div>
+                    </div>
+                    
+                    <div className="bg-white p-6 rounded-lg shadow-sm border h-full flex flex-col justify-center items-center">
+                      <div className="text-4xl font-bold text-orange-600 mb-2">{formatViews(campaignTotals.overallMedianViews)}</div>
+                      <div className="text-base text-gray-600 text-center">Median Views</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right side: Large video status distribution card */}
+                <div className="lg:col-span-1">
+                  <div className="bg-white p-6 rounded-lg shadow-sm border h-full">
+                    <h4 className="font-medium text-gray-800 mb-4 text-center">Video Status Distribution</h4>
+                    <div className="space-y-3">
+                      {Object.entries(campaignTotals.statusCounts).map(([status, count]) => (
+                        <div key={status} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                              {status}
+                            </span>
+                          </div>
+                          <span className="text-sm font-medium text-gray-600">{count} video{count !== 1 ? 's' : ''}</span>
+                        </div>
+                      ))}
+                      {Object.keys(campaignTotals.statusCounts).length === 0 && (
+                        <div className="text-sm text-gray-500 italic text-center">No videos found</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-4">
                 <Input
@@ -1312,31 +1425,31 @@ export function CampaignsPage() {
                               <Table className="w-full">
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead className="w-20">ID</TableHead>
-                                    <TableHead className="min-w-[200px]">Link</TableHead>
-                                    <TableHead className="w-24">Views</TableHead>
-                                    <TableHead className="w-28">Platform</TableHead>
-                                    <TableHead className="w-32">Status</TableHead>
-                                    <TableHead className="w-32">Posted On</TableHead>
+                                    <TableHead className="w-16">ID</TableHead>
+                                    <TableHead className="w-48">Link</TableHead>
+                                    <TableHead className="w-20">Views</TableHead>
+                                    <TableHead className="w-24">Platform</TableHead>
+                                    <TableHead className="w-28">Status</TableHead>
+                                    <TableHead className="w-28">Posted On</TableHead>
                                     <TableHead className="w-16 text-center">Actions</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {(record.videos || []).map((video) => (
                                     <TableRow key={video.id}>
-                                      <TableCell className="font-mono text-xs">
+                                      <TableCell className="font-mono text-xs w-16">
                                         {video.id.length > 6 ? `${video.id.slice(0, 4)}...${video.id.slice(-2)}` : video.id}
                                       </TableCell>
                                       
                                       {/* Link - with edit icon */}
-                                      <TableCell>
-                                        <div className="flex items-center gap-2 min-w-[200px]">
+                                      <TableCell className="w-48">
+                                        <div className="flex items-center gap-2 w-full">
                                           {isFieldEditing(record.id, video.id, 'link') ? (
-                                            <div className="flex items-center gap-1 flex-1">
+                                            <div className="flex items-center gap-1 w-full">
                                               <Input
                                                 value={video.link}
                                                 onChange={(e) => updateVideoField(video.id, 'link', e.target.value)}
-                                                className="text-sm h-6 flex-1"
+                                                className="text-sm h-6 w-full"
                                                 onBlur={() => toggleFieldEdit(record.id, video.id, 'link')}
                                                 onKeyDown={(e) => {
                                                   if (e.key === 'Enter' || e.key === 'Escape') {
@@ -1371,13 +1484,13 @@ export function CampaignsPage() {
                                       </TableCell>
 
                                       {/* Views - click to edit */}
-                                      <TableCell>
+                                      <TableCell className="w-20">
                                         {isFieldEditing(record.id, video.id, 'views') ? (
                                           <Input
                                             type="number"
                                             value={video.views}
                                             onChange={(e) => updateVideoField(video.id, 'views', parseInt(e.target.value) || 0)}
-                                            className="text-sm w-24 h-6"
+                                            className="text-sm w-full h-6"
                                             onBlur={() => toggleFieldEdit(record.id, video.id, 'views')}
                                             onKeyDown={(e) => {
                                               if (e.key === 'Enter' || e.key === 'Escape') {
@@ -1387,9 +1500,9 @@ export function CampaignsPage() {
                                             autoFocus
                                           />
                                         ) : (
-                                          <div className="flex items-center justify-start w-24 h-6">
+                                          <div className="flex items-center justify-start w-full h-6">
                                             <span 
-                                              className="w-16 h-fit flex items-center justify-center gap-1 font-mono text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
+                                              className="flex-1 font-mono text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
                                               onClick={() => toggleFieldEdit(record.id, video.id, 'views')}
                                             >
                                               {formatViews(video.views || 0)}
@@ -1407,7 +1520,7 @@ export function CampaignsPage() {
                                       </TableCell>
                                       
                                       {/* Platform - direct select */}
-                                      <TableCell>
+                                      <TableCell className="w-24">
                                         <Select
                                           value={video.platform}
                                           onValueChange={(value: string) => updateVideoField(video.id, 'platform', value)}
@@ -1438,7 +1551,7 @@ export function CampaignsPage() {
                                       </TableCell>
                                       
                                       {/* Status - direct select */}
-                                      <TableCell className='!cursor-pointer'>
+                                      <TableCell className="w-28">
                                         <Select
                                           value={video.status}
                                           onValueChange={(value: string) => updateVideoField(video.id, 'status', value)}
@@ -1469,13 +1582,13 @@ export function CampaignsPage() {
                                       </TableCell>
                                       
                                       {/* Posted On - click to edit */}
-                                      <TableCell>
+                                      <TableCell className="w-28">
                                         {isFieldEditing(record.id, video.id, 'posted_on') ? (
                                           <Input
                                             type="date"
                                             value={video.posted_on || ''}
                                             onChange={(e) => updateVideoField(video.id, 'posted_on', e.target.value)}
-                                            className="text-sm w-32 h-6 !p-0"
+                                            className="text-sm w-full h-6"
                                             onBlur={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
                                             onKeyDown={(e) => {
                                               if (e.key === 'Enter' || e.key === 'Escape') {
@@ -1485,9 +1598,9 @@ export function CampaignsPage() {
                                             autoFocus
                                           />
                                         ) : (
-                                          <div className="w-32 h-6 flex items-center gap-2">
+                                          <div className="w-full h-6 flex items-center gap-2">
                                             <span 
-                                              className="text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
+                                              className="flex-1 text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
                                               onClick={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
                                             >
                                               {video.posted_on || 'Not set'}
@@ -1505,7 +1618,7 @@ export function CampaignsPage() {
                                       </TableCell>
 
                                       {/* Actions */}
-                                      <TableCell className="text-center">
+                                      <TableCell className="text-center w-16">
                                         <Button
                                           variant="ghost"
                                           size="sm"
