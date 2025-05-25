@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // Platform and Status enums to match database
-export const PlatformSchema = z.enum(['YouTube', 'Instagram', 'TikTok', 'Twitch'])
+export const PlatformSchema = z.enum(['YouTube', 'Instagram', 'TikTok'])
 export const VideoStatusSchema = z.enum(['Published', 'Scheduled', 'Draft', 'Live', 'Under Review', 'Archived'])
 
 export type Platform = z.infer<typeof PlatformSchema>

@@ -35,7 +35,7 @@ import { useCampaignStore } from '../store/campaignStore'
 import { type VideoLenient, type Platform, type VideoStatus, type CreateVideo, type CreateInfluencer, CreateVideoSchema, CreateInfluencerSchema } from '../lib/schemas'
 
 const statusOptions: VideoStatus[] = ["Published", "Scheduled", "Draft", "Live", "Under Review", "Archived"]
-const platformOptions: Platform[] = ["YouTube", "Instagram", "TikTok", "Twitch"]
+const platformOptions: Platform[] = ["YouTube", "Instagram", "TikTok"]
 
 // Form validation state interface
 interface FormErrors {
@@ -298,11 +298,6 @@ export function CampaignsPage() {
               case 'TikTok':
                 if (!url.hostname.includes('tiktok.com')) {
                   return 'Must be a valid TikTok URL (tiktok.com)'
-                }
-                break
-              case 'Twitch':
-                if (!url.hostname.includes('twitch.tv')) {
-                  return 'Must be a valid Twitch URL (twitch.tv)'
                 }
                 break
             }
@@ -836,13 +831,11 @@ export function CampaignsPage() {
   const getPlatformColor = (platform: string) => {
     switch (platform) {
       case "YouTube":
-        return "bg-red-100 text-red-800"
+        return "bg-red-500 text-white"
       case "Instagram":
-        return "bg-pink-100 text-pink-800"
+        return "bg-pink-500 text-white"
       case "TikTok":
-        return "bg-purple-100 text-purple-800"
-      case "Twitch":
-        return "bg-indigo-100 text-indigo-800"
+        return "bg-black text-white"
       default:
         return "bg-blue-100 text-blue-800"
     }
@@ -870,13 +863,11 @@ export function CampaignsPage() {
   const getPlatformBgColor = (platform: string) => {
     switch (platform) {
       case "YouTube":
-        return "bg-red-100"
+        return "bg-red-500"
       case "Instagram":
-        return "bg-pink-100"
+        return "bg-pink-500"
       case "TikTok":
-        return "bg-purple-100"
-      case "Twitch":
-        return "bg-indigo-100"
+        return "bg-black"
       default:
         return "bg-blue-100"
     }
@@ -1129,8 +1120,8 @@ export function CampaignsPage() {
                               />
                             </div>
                           ) : (
-                            <>
-                              <span className="font-medium cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
+                            <div className="w-40 flex items-center gap-2">
+                              <span className="w-32 overflow-hidden text-ellipsis whitespace-nowrap font-medium cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
                                     onClick={() => toggleFieldEdit(record.id, 'username', 'field')}>
                                 {record.username || 'Unknown'}
                               </span>
@@ -1142,7 +1133,7 @@ export function CampaignsPage() {
                               >
                                 <Edit className="h-3 w-3" />
                               </Button>
-                            </>
+                            </div>
                           )}
                         </div>
                       </TableCell>
@@ -1209,12 +1200,12 @@ export function CampaignsPage() {
                       <TableCell className="text-right font-mono">
                         {formatViews(record.views_now || 0)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteInfluencer(record.id)}
-                          className="h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                          className="h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-50 mx-auto"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -1222,7 +1213,7 @@ export function CampaignsPage() {
                     </TableRow>
                     {expandedRows.has(record.id) && (
                       <TableRow>
-                        <TableCell colSpan={7} className="p-0">
+                        <TableCell colSpan={8} className="p-0">
                           <div className="bg-gray-50 p-4">
                             <div className="flex justify-between items-center mb-3">
                               <h4 className="font-semibold text-sm">Videos for {record.username || 'Unknown'}</h4>
@@ -1235,213 +1226,218 @@ export function CampaignsPage() {
                                 Add Video
                               </Button>
                             </div>
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="w-12">ID</TableHead>
-                                  <TableHead>Link</TableHead>
-                                  <TableHead>Views</TableHead>
-                                  <TableHead>Platform</TableHead>
-                                  <TableHead>Status</TableHead>
-                                  <TableHead>Posted On</TableHead>
-                                  <TableHead className="w-16">Actions</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {(record.videos || []).map((video) => (
-                                  <TableRow key={video.id}>
-                                    <TableCell className="font-mono text-sm">{video.id}</TableCell>
-                                    
-                                    {/* Link - with edit icon */}
-                                    <TableCell>
-                                      <div className="flex items-center gap-2">
-                                        {isFieldEditing(record.id, video.id, 'link') ? (
-                                          <div className="flex items-center gap-1">
-                                            <Input
-                                              value={video.link}
-                                              onChange={(e) => updateVideoField(video.id, 'link', e.target.value)}
-                                              className="text-sm w-56 h-6"
-                                              onBlur={() => toggleFieldEdit(record.id, video.id, 'link')}
-                                              onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === 'Escape') {
-                                                  toggleFieldEdit(record.id, video.id, 'link')
-                                                }
-                                              }}
-                                              autoFocus
-                                            />
-                                          </div>
+                            <div className="w-full overflow-x-auto">
+                              <Table className="w-full">
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-20">ID</TableHead>
+                                    <TableHead className="min-w-[200px]">Link</TableHead>
+                                    <TableHead className="w-24">Views</TableHead>
+                                    <TableHead className="w-28">Platform</TableHead>
+                                    <TableHead className="w-32">Status</TableHead>
+                                    <TableHead className="w-32">Posted On</TableHead>
+                                    <TableHead className="w-16 text-center">Actions</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {(record.videos || []).map((video) => (
+                                    <TableRow key={video.id}>
+                                      <TableCell className="font-mono text-xs">
+                                        {video.id.length > 6 ? `${video.id.slice(0, 4)}...${video.id.slice(-2)}` : video.id}
+                                      </TableCell>
+                                      
+                                      {/* Link - with edit icon */}
+                                      <TableCell>
+                                        <div className="flex items-center gap-2 min-w-[200px]">
+                                          {isFieldEditing(record.id, video.id, 'link') ? (
+                                            <div className="flex items-center gap-1 flex-1">
+                                              <Input
+                                                value={video.link}
+                                                onChange={(e) => updateVideoField(video.id, 'link', e.target.value)}
+                                                className="text-sm h-6 flex-1"
+                                                onBlur={() => toggleFieldEdit(record.id, video.id, 'link')}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter' || e.key === 'Escape') {
+                                                    toggleFieldEdit(record.id, video.id, 'link')
+                                                  }
+                                                }}
+                                                autoFocus
+                                              />
+                                            </div>
+                                          ) : (
+                                            <>
+                                              <a 
+                                                href={video.link} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="flex-1 text-blue-600 hover:text-blue-800 underline truncate block text-sm"
+                                                title={video.link}
+                                              >
+                                                {video.link}
+                                              </a>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => toggleFieldEdit(record.id, video.id, 'link')}
+                                                className="h-4 w-4 p-0 opacity-50 hover:opacity-100 cursor-pointer flex-shrink-0"
+                                              >
+                                                <Edit className="h-3 w-3" />
+                                              </Button>
+                                            </>
+                                          )}
+                                        </div>
+                                      </TableCell>
+
+                                      {/* Views - click to edit */}
+                                      <TableCell>
+                                        {isFieldEditing(record.id, video.id, 'views') ? (
+                                          <Input
+                                            type="number"
+                                            value={video.views}
+                                            onChange={(e) => updateVideoField(video.id, 'views', parseInt(e.target.value) || 0)}
+                                            className="text-sm w-24 h-6"
+                                            onBlur={() => toggleFieldEdit(record.id, video.id, 'views')}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter' || e.key === 'Escape') {
+                                                toggleFieldEdit(record.id, video.id, 'views')
+                                              }
+                                            }}
+                                            autoFocus
+                                          />
                                         ) : (
-                                          <>
-                                            <a 
-                                              href={video.link} 
-                                              target="_blank" 
-                                              rel="noopener noreferrer"
-                                              className="w-56 h-6 text-blue-600 hover:text-blue-800 underline truncate block text-sm"
+                                          <div className="flex items-center justify-start w-24 h-6">
+                                            <span 
+                                              className="w-16 h-fit flex items-center justify-center gap-1 font-mono text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
+                                              onClick={() => toggleFieldEdit(record.id, video.id, 'views')}
                                             >
-                                              {video.link}
-                                            </a>
+                                              {formatViews(video.views || 0)}
+                                            </span>
                                             <Button
                                               variant="ghost"
                                               size="sm"
-                                              onClick={() => toggleFieldEdit(record.id, video.id, 'link')}
+                                              onClick={() => toggleFieldEdit(record.id, video.id, 'views')}
                                               className="h-4 w-4 p-0 opacity-50 hover:opacity-100 cursor-pointer"
                                             >
                                               <Edit className="h-3 w-3" />
                                             </Button>
-                                          </>
+                                          </div>
                                         )}
-                                      </div>
-                                    </TableCell>
+                                      </TableCell>
+                                      
+                                      {/* Platform - direct select */}
+                                      <TableCell>
+                                        <Select
+                                          value={video.platform}
+                                          onValueChange={(value: string) => updateVideoField(video.id, 'platform', value)}
+                                        >
+                                          <SelectTrigger className={`w-fit h-fit flex items-center gap-0 px-1 py-0 rounded-full cursor-pointer ${getPlatformColor(video.platform)}`}>
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent className="bg-transparent shadow-none border-none px-2 py-0">
+                                            {platformOptions.map((platform) => (
+                                              <SelectItem
+                                               key={platform} 
+                                               value={platform}
+                                               className={
+                                                cn(`w-24 h-fit flex flex-1 items-center justify-center gap-2 px-3 py-0 mb-2`,
+                                                 `rounded-full text-xs font-medium shadow-md cursor-pointer ${getPlatformColor(platform)}`,
+                                                 `hover:shadow-lg hover:scale-105 hover:${getPlatformBgColor(platform)} transition-all duration-200`,
+                                                 `data-[highlighted]:shadow-lg data-[highlighted]:scale-105 data-[highlighted]:${getPlatformBgColor(platform)}`,
+                                                 `focus:${getPlatformBgColor(platform)} data-[state=checked]:${getPlatformBgColor(platform)}`
+                                                )}
+                                               >
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPlatformColor(platform)}`}>
+                                                  {platform}
+                                                </span>
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
+                                      
+                                      {/* Status - direct select */}
+                                      <TableCell className='!cursor-pointer'>
+                                        <Select
+                                          value={video.status}
+                                          onValueChange={(value: string) => updateVideoField(video.id, 'status', value)}
+                                        >
+                                          <SelectTrigger className={`w-fit h-fit flex items-center gap-0 px-1 py-0 rounded-full cursor-pointer ${getStatusColor(video.status)}`}>
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent className="bg-transparent shadow-none border-none px-2 py-0">
+                                            {statusOptions.map((status) => (
+                                              <SelectItem
+                                               key={status} 
+                                               value={status}
+                                               className={
+                                                cn(`w-32 h-fit flex flex-1 items-center justify-center gap-2 px-3 py-0 mb-2`,
+                                                 `rounded-full text-xs font-medium shadow-md cursor-pointer ${getStatusBgColor(status)}`,
+                                                 `hover:shadow-lg hover:scale-105 hover:${getStatusBgColor(status)} transition-all duration-200`,
+                                                 `data-[highlighted]:shadow-lg data-[highlighted]:scale-105 data-[highlighted]:${getStatusBgColor(status)}`,
+                                                 `focus:${getStatusBgColor(status)} data-[state=checked]:${getStatusBgColor(status)}`
+                                                )}
+                                               >
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                                                  {status}
+                                                </span>
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
+                                      
+                                      {/* Posted On - click to edit */}
+                                      <TableCell>
+                                        {isFieldEditing(record.id, video.id, 'posted_on') ? (
+                                          <Input
+                                            type="date"
+                                            value={video.posted_on || ''}
+                                            onChange={(e) => updateVideoField(video.id, 'posted_on', e.target.value)}
+                                            className="text-sm w-32 h-6 !p-0"
+                                            onBlur={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter' || e.key === 'Escape') {
+                                                toggleFieldEdit(record.id, video.id, 'posted_on')
+                                              }
+                                            }}
+                                            autoFocus
+                                          />
+                                        ) : (
+                                          <div className="w-32 h-6 flex items-center gap-2">
+                                            <span 
+                                              className="text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
+                                              onClick={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
+                                            >
+                                              {video.posted_on || 'Not set'}
+                                            </span>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
+                                              className="h-4 w-4 p-0 opacity-50 hover:opacity-100 cursor-pointer"
+                                            >
+                                              <Edit className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                        )}
+                                      </TableCell>
 
-                                    {/* Views - click to edit */}
-                                    <TableCell>
-                                      {isFieldEditing(record.id, video.id, 'views') ? (
-                                        <Input
-                                          type="number"
-                                          value={video.views}
-                                          onChange={(e) => updateVideoField(video.id, 'views', parseInt(e.target.value) || 0)}
-                                          className="text-sm w-24 h-6"
-                                          onBlur={() => toggleFieldEdit(record.id, video.id, 'views')}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === 'Escape') {
-                                              toggleFieldEdit(record.id, video.id, 'views')
-                                            }
-                                          }}
-                                          autoFocus
-                                        />
-                                      ) : (
-                                        <div className="flex items-center justify-start w-24 h-6">
-                                          <span 
-                                            className="w-16 h-fit flex items-center justify-center gap-1 font-mono text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
-                                            onClick={() => toggleFieldEdit(record.id, video.id, 'views')}
-                                          >
-                                            {formatViews(video.views || 0)}
-                                          </span>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => toggleFieldEdit(record.id, video.id, 'views')}
-                                            className="h-4 w-4 p-0 opacity-50 hover:opacity-100 cursor-pointer"
-                                          >
-                                            <Edit className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                      )}
-                                    </TableCell>
-                                    
-                                    {/* Platform - direct select */}
-                                    <TableCell>
-                                      <Select
-                                        value={video.platform}
-                                        onValueChange={(value: string) => updateVideoField(video.id, 'platform', value)}
-                                      >
-                                        <SelectTrigger className={`w-fit h-fit flex items-center gap-0 px-1 py-0 rounded-full cursor-pointer ${getPlatformColor(video.platform)}`}>
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-transparent shadow-none border-none px-2 py-0">
-                                          {platformOptions.map((platform) => (
-                                            <SelectItem
-                                             key={platform} 
-                                             value={platform}
-                                             className={
-                                              cn(`w-24 h-fit flex flex-1 items-center justify-center gap-2 px-3 py-0 mb-2`,
-                                               `rounded-full text-xs font-medium shadow-md cursor-pointer ${getPlatformColor(platform)}`,
-                                               `hover:shadow-lg hover:scale-105 hover:${getPlatformBgColor(platform)} transition-all duration-200`,
-                                               `data-[highlighted]:shadow-lg data-[highlighted]:scale-105 data-[highlighted]:${getPlatformBgColor(platform)}`,
-                                               `focus:${getPlatformBgColor(platform)} data-[state=checked]:${getPlatformBgColor(platform)}`
-                                              )}
-                                             >
-                                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPlatformColor(platform)}`}>
-                                                {platform}
-                                              </span>
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </TableCell>
-                                    
-                                    {/* Status - direct select */}
-                                    <TableCell className='!cursor-pointer'>
-                                      <Select
-                                        value={video.status}
-                                        onValueChange={(value: string) => updateVideoField(video.id, 'status', value)}
-                                      >
-                                        <SelectTrigger className={`w-fit h-fit flex items-center gap-0 px-1 py-0 rounded-full cursor-pointer ${getStatusColor(video.status)}`}>
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-transparent shadow-none border-none px-2 py-0">
-                                          {statusOptions.map((status) => (
-                                            <SelectItem
-                                             key={status} 
-                                             value={status}
-                                             className={
-                                              cn(`w-32 h-fit flex flex-1 items-center justify-center gap-2 px-3 py-0 mb-2`,
-                                               `rounded-full text-xs font-medium shadow-md cursor-pointer ${getStatusBgColor(status)}`,
-                                               `hover:shadow-lg hover:scale-105 hover:${getStatusBgColor(status)} transition-all duration-200`,
-                                               `data-[highlighted]:shadow-lg data-[highlighted]:scale-105 data-[highlighted]:${getStatusBgColor(status)}`,
-                                               `focus:${getStatusBgColor(status)} data-[state=checked]:${getStatusBgColor(status)}`
-                                              )}
-                                             >
-                                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-                                                {status}
-                                              </span>
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </TableCell>
-                                    
-                                    {/* Posted On - click to edit */}
-                                    <TableCell>
-                                      {isFieldEditing(record.id, video.id, 'posted_on') ? (
-                                        <Input
-                                          type="date"
-                                          value={video.posted_on || ''}
-                                          onChange={(e) => updateVideoField(video.id, 'posted_on', e.target.value)}
-                                          className="text-sm w-32 h-6 !p-0"
-                                          onBlur={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === 'Escape') {
-                                              toggleFieldEdit(record.id, video.id, 'posted_on')
-                                            }
-                                          }}
-                                          autoFocus
-                                        />
-                                      ) : (
-                                        <div className="w-32 h-6 flex items-center gap-2">
-                                          <span 
-                                            className="text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
-                                            onClick={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
-                                          >
-                                            {video.posted_on || 'Not set'}
-                                          </span>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
-                                            className="h-4 w-4 p-0 opacity-50 hover:opacity-100 cursor-pointer"
-                                          >
-                                            <Edit className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                      )}
-                                    </TableCell>
-
-                                    {/* Actions */}
-                                    <TableCell>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeleteVideo(video.id)}
-                                        className="h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
+                                      {/* Actions */}
+                                      <TableCell className="text-center">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleDeleteVideo(video.id)}
+                                          className="h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-50 mx-auto"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
                           </div>
                         </TableCell>
                       </TableRow>
