@@ -1461,7 +1461,7 @@ export function CampaignsPage() {
                                               <Input
                                                 value={video.link}
                                                 onChange={(e) => updateVideoField(video.id, 'link', e.target.value)}
-                                                className="text-sm h-6 w-full"
+                                                className="text-sm h-6 w-28 px-1"
                                                 onBlur={() => toggleFieldEdit(record.id, video.id, 'link')}
                                                 onKeyDown={(e) => {
                                                   if (e.key === 'Enter' || e.key === 'Escape') {
@@ -1610,7 +1610,7 @@ export function CampaignsPage() {
                                             autoFocus
                                           />
                                         ) : (
-                                          <div className="w-32 h-6 flex items-center justify-end gap-2">
+                                          <div className="w-32 h-6 flex items-center gap-2">
                                             <span 
                                               className="w-24 text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
                                               onClick={() => toggleFieldEdit(record.id, video.id, 'posted_on')}
