@@ -425,9 +425,8 @@ export const useCampaignStore = create<CampaignState>()(
       updateVideo: async (id: string, video: UpdateVideo) => {
         // Don't set loading state for smooth UX
         try {
-          // Store original video for potential rollback
-          const state = get()
-          const originalVideo = state.videos.find(v => v.id === id)
+          // Store original video for potential rollback - use helper function
+          const originalVideo = get().getVideoById(id)
           
           if (!originalVideo) {
             throw new Error('Video not found')
@@ -499,8 +498,7 @@ export const useCampaignStore = create<CampaignState>()(
           return handleSupabaseSuccess(validatedVideo)
         } catch (error) {
           // Rollback optimistic update on error - restore original video
-          const state = get()
-          const originalVideo = state.videos.find(v => v.id === id)
+          const originalVideo = get().getVideoById(id)
           
           if (originalVideo) {
             set(state => {
@@ -536,9 +534,9 @@ export const useCampaignStore = create<CampaignState>()(
       deleteVideo: async (id: string) => {
         // Don't set loading state for smooth UX
         try {
-          // Store the video for potential rollback
+          // Store the video for potential rollback - use helper function
+          const videoToDelete = get().getVideoById(id)
           const state = get()
-          const videoToDelete = state.videos.find(v => v.id === id)
           const influencerToUpdate = state.influencers.find(inf => 
             inf.videos.some(v => v.id === id)
           )
@@ -581,9 +579,7 @@ export const useCampaignStore = create<CampaignState>()(
           return handleSupabaseSuccess(undefined)
         } catch (error) {
           // Rollback optimistic update on error - restore the video
-          const state = get()
-          const videoToRestore = state.videos.find(v => v.id === id) || 
-                                 state.influencers.flatMap(inf => inf.videos).find(v => v.id === id)
+          const videoToRestore = get().getVideoById(id)
 
           if (videoToRestore) {
             set(state => {
@@ -621,7 +617,19 @@ export const useCampaignStore = create<CampaignState>()(
       },
 
       getVideoById: (id: string) => {
-        return get().videos.find(video => video.id === id)
+        const state = get()
+        // First check global videos array
+        let video = state.videos.find(v => v.id === id)
+        
+        // If not found, check influencers' videos
+        if (!video) {
+          for (const influencer of state.influencers) {
+            video = influencer.videos.find(v => v.id === id)
+            if (video) break
+          }
+        }
+        
+        return video
       },
 
       refreshInfluencerMetrics: (influencerId: string) => {
