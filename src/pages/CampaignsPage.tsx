@@ -32,7 +32,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from '@/lib/utils'
 import { useCampaignStore } from '../store/campaignStore'
-import { type Video, type VideoLenient, type Platform, type VideoStatus, type CreateVideo, CreateVideoSchema } from '../lib/schemas'
+import { type VideoLenient, type Platform, type VideoStatus, type CreateVideo, CreateVideoSchema } from '../lib/schemas'
 
 const statusOptions: VideoStatus[] = ["Published", "Scheduled", "Draft", "Live", "Under Review", "Archived"]
 const platformOptions: Platform[] = ["YouTube", "Instagram", "TikTok", "Twitch"]
@@ -86,6 +86,7 @@ export function CampaignsPage() {
   // Form validation states
   const [formErrors, setFormErrors] = useState<FormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [touched, setTouched] = useState<{[key: string]: boolean}>({})
 
   // Set default campaign ID (you can change this to the actual campaign ID you want to display)
@@ -460,11 +461,11 @@ export function CampaignsPage() {
       // Clear any existing errors on successful operation
       setError(null)
       
-      // Show success notification
-      toast({
-        title: 'Success',
-        description: `Video ${field} updated successfully`,
-      })
+      // Show success notification - removed for smoother UX
+      // toast({
+      //   title: 'Success',
+      //   description: `Video ${field} updated successfully`,
+      // })
       
     } catch (error) {
       console.error('Error updating video field:', error)
@@ -533,11 +534,11 @@ export function CampaignsPage() {
         setFormErrors({})
         setTouched({})
         
-        // Show success notification
-        toast({
-          title: 'Success',
-          description: 'Video added successfully',
-        })
+        // Show success notification - removed for smoother UX
+        // toast({
+        //   title: 'Success',
+        //   description: 'Video added successfully',
+        // })
       } else {
         setFormErrors({ 
           general: result.error || 'Failed to create video. Please try again.' 
@@ -561,6 +562,7 @@ export function CampaignsPage() {
   const confirmDeleteVideo = async () => {
     if (!videoToDelete) return
 
+    setIsDeleting(true)
     try {
       const result = await deleteVideo(videoToDelete)
       if (result.success) {
@@ -570,11 +572,11 @@ export function CampaignsPage() {
         setIsDeleteDialogOpen(false)
         setVideoToDelete(null)
         
-        // Show success notification
-        toast({
-          title: 'Success',
-          description: 'Video deleted successfully',
-        })
+        // Show success notification - removed for smoother UX
+        // toast({
+        //   title: 'Success',
+        //   description: 'Video deleted successfully',
+        // })
       } else {
         toast({
           title: 'Error',
@@ -589,6 +591,8 @@ export function CampaignsPage() {
         description: 'An unexpected error occurred while deleting the video',
         variant: 'destructive'
       })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -1397,9 +1401,9 @@ export function CampaignsPage() {
               <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={confirmDeleteVideo}>
+              <Button variant="destructive" onClick={confirmDeleteVideo} disabled={isDeleting}>
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete Video
+                {isDeleting ? 'Deleting...' : 'Delete Video'}
               </Button>
             </DialogFooter>
           </DialogContent>

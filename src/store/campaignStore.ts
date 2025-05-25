@@ -327,23 +327,22 @@ export const useCampaignStore = create<CampaignState>()(
       },
 
       createVideo: async (video: CreateVideo) => {
-        set({ loading: true, error: null })
+        // Don't set loading state for smooth UX
         try {
-          const { data, error } = await supabase
-            .from('videos')
-            .insert(video)
-            .select()
-            .single()
+          // Optimistic update first - add video immediately to UI
+          const tempId = `temp-${Date.now()}`
+          const optimisticVideo = {
+            id: tempId,
+            ...video,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
 
-          if (error) throw error
-
-          const validatedVideo = VideoSchema.parse(data)
-          
-          // Update the influencer's videos and recalculate metrics
+          // Update UI immediately
           set(state => {
             const updatedInfluencers = state.influencers.map(inf => {
               if (inf.id === video.influencer_id) {
-                const updatedVideos = [validatedVideo, ...inf.videos]
+                const updatedVideos = [optimisticVideo, ...inf.videos]
                 const metrics = calculateInfluencerMetrics(updatedVideos)
                 return {
                   ...inf,
@@ -356,14 +355,67 @@ export const useCampaignStore = create<CampaignState>()(
             
             return {
               influencers: updatedInfluencers,
-              videos: [validatedVideo, ...state.videos],
-              loading: false
+              videos: [optimisticVideo, ...state.videos],
+            }
+          })
+
+          // Then save to database
+          const { data, error } = await supabase
+            .from('videos')
+            .insert(video)
+            .select()
+            .single()
+
+          if (error) throw error
+
+          const validatedVideo = VideoSchema.parse(data)
+          
+          // Replace optimistic video with real data
+          set(state => {
+            const updatedInfluencers = state.influencers.map(inf => {
+              if (inf.id === video.influencer_id) {
+                const updatedVideos = inf.videos.map(v => 
+                  v.id === tempId ? validatedVideo : v
+                )
+                const metrics = calculateInfluencerMetrics(updatedVideos)
+                return {
+                  ...inf,
+                  videos: updatedVideos,
+                  ...metrics
+                }
+              }
+              return inf
+            })
+            
+            return {
+              influencers: updatedInfluencers,
+              videos: state.videos.map(v => v.id === tempId ? validatedVideo : v),
             }
           })
           
           return handleSupabaseSuccess(validatedVideo)
         } catch (error) {
-          set({ loading: false })
+          // Rollback optimistic update on error
+          set(state => {
+            const updatedInfluencers = state.influencers.map(inf => {
+              if (inf.id === video.influencer_id) {
+                const updatedVideos = inf.videos.filter(v => !v.id.startsWith('temp-'))
+                const metrics = calculateInfluencerMetrics(updatedVideos)
+                return {
+                  ...inf,
+                  videos: updatedVideos,
+                  ...metrics
+                }
+              }
+              return inf
+            })
+            
+            return {
+              influencers: updatedInfluencers,
+              videos: state.videos.filter(v => !v.id.startsWith('temp-')),
+            }
+          })
+          
           const response = handleSupabaseError(error)
           set({ error: response.error })
           return response
@@ -371,8 +423,44 @@ export const useCampaignStore = create<CampaignState>()(
       },
 
       updateVideo: async (id: string, video: UpdateVideo) => {
-        set({ loading: true, error: null })
+        // Don't set loading state for smooth UX
         try {
+          // Store original video for potential rollback
+          const state = get()
+          const originalVideo = state.videos.find(v => v.id === id)
+          
+          if (!originalVideo) {
+            throw new Error('Video not found')
+          }
+
+          // Create optimistic updated video
+          const optimisticVideo = { ...originalVideo, ...video, updated_at: new Date().toISOString() }
+          
+          // Optimistic update - update video immediately in UI
+          set(state => {
+            const updatedVideos = state.videos.map(v => v.id === id ? optimisticVideo : v)
+            const updatedInfluencers = state.influencers.map(inf => {
+              const videoIndex = inf.videos.findIndex(v => v.id === id)
+              if (videoIndex !== -1) {
+                const updatedInfluencerVideos = [...inf.videos]
+                updatedInfluencerVideos[videoIndex] = optimisticVideo
+                const metrics = calculateInfluencerMetrics(updatedInfluencerVideos)
+                return {
+                  ...inf,
+                  videos: updatedInfluencerVideos,
+                  ...metrics
+                }
+              }
+              return inf
+            })
+            
+            return {
+              videos: updatedVideos,
+              influencers: updatedInfluencers,
+            }
+          })
+
+          // Then save to database
           const { data, error } = await supabase
             .from('videos')
             .update(video)
@@ -384,7 +472,7 @@ export const useCampaignStore = create<CampaignState>()(
 
           const validatedVideo = VideoSchema.parse(data)
           
-          // Update the video in both videos array and influencer's videos
+          // Replace optimistic video with real data
           set(state => {
             const updatedVideos = state.videos.map(v => v.id === id ? validatedVideo : v)
             const updatedInfluencers = state.influencers.map(inf => {
@@ -405,13 +493,40 @@ export const useCampaignStore = create<CampaignState>()(
             return {
               videos: updatedVideos,
               influencers: updatedInfluencers,
-              loading: false
             }
           })
           
           return handleSupabaseSuccess(validatedVideo)
         } catch (error) {
-          set({ loading: false })
+          // Rollback optimistic update on error - restore original video
+          const state = get()
+          const originalVideo = state.videos.find(v => v.id === id)
+          
+          if (originalVideo) {
+            set(state => {
+              const updatedVideos = state.videos.map(v => v.id === id ? originalVideo : v)
+              const updatedInfluencers = state.influencers.map(inf => {
+                const videoIndex = inf.videos.findIndex(v => v.id === id)
+                if (videoIndex !== -1) {
+                  const updatedInfluencerVideos = [...inf.videos]
+                  updatedInfluencerVideos[videoIndex] = originalVideo
+                  const metrics = calculateInfluencerMetrics(updatedInfluencerVideos)
+                  return {
+                    ...inf,
+                    videos: updatedInfluencerVideos,
+                    ...metrics
+                  }
+                }
+                return inf
+              })
+              
+              return {
+                videos: updatedVideos,
+                influencers: updatedInfluencers,
+              }
+            })
+          }
+          
           const response = handleSupabaseError(error)
           set({ error: response.error })
           return response
@@ -419,22 +534,25 @@ export const useCampaignStore = create<CampaignState>()(
       },
 
       deleteVideo: async (id: string) => {
-        set({ loading: true, error: null })
+        // Don't set loading state for smooth UX
         try {
-          const { error } = await supabase
-            .from('videos')
-            .delete()
-            .eq('id', id)
+          // Store the video for potential rollback
+          const state = get()
+          const videoToDelete = state.videos.find(v => v.id === id)
+          const influencerToUpdate = state.influencers.find(inf => 
+            inf.videos.some(v => v.id === id)
+          )
 
-          if (error) throw error
+          if (!videoToDelete || !influencerToUpdate) {
+            throw new Error('Video not found')
+          }
 
-          // Remove video and recalculate influencer metrics
+          // Optimistic update - remove video immediately from UI
           set(state => {
-            const videoToDelete = state.videos.find(v => v.id === id)
             const updatedVideos = state.videos.filter(v => v.id !== id)
             
             const updatedInfluencers = state.influencers.map(inf => {
-              if (videoToDelete && inf.id === videoToDelete.influencer_id) {
+              if (inf.id === influencerToUpdate.id) {
                 const updatedInfluencerVideos = inf.videos.filter(v => v.id !== id)
                 const metrics = calculateInfluencerMetrics(updatedInfluencerVideos)
                 return {
@@ -449,13 +567,48 @@ export const useCampaignStore = create<CampaignState>()(
             return {
               videos: updatedVideos,
               influencers: updatedInfluencers,
-              loading: false
             }
           })
+
+          // Then delete from database
+          const { error } = await supabase
+            .from('videos')
+            .delete()
+            .eq('id', id)
+
+          if (error) throw error
           
           return handleSupabaseSuccess(undefined)
         } catch (error) {
-          set({ loading: false })
+          // Rollback optimistic update on error - restore the video
+          const state = get()
+          const videoToRestore = state.videos.find(v => v.id === id) || 
+                                 state.influencers.flatMap(inf => inf.videos).find(v => v.id === id)
+
+          if (videoToRestore) {
+            set(state => {
+              const updatedVideos = [videoToRestore, ...state.videos.filter(v => v.id !== id)]
+              
+              const updatedInfluencers = state.influencers.map(inf => {
+                if (inf.id === videoToRestore.influencer_id) {
+                  const updatedInfluencerVideos = [videoToRestore, ...inf.videos.filter(v => v.id !== id)]
+                  const metrics = calculateInfluencerMetrics(updatedInfluencerVideos)
+                  return {
+                    ...inf,
+                    videos: updatedInfluencerVideos,
+                    ...metrics
+                  }
+                }
+                return inf
+              })
+              
+              return {
+                videos: updatedVideos,
+                influencers: updatedInfluencers,
+              }
+            })
+          }
+          
           const response = handleSupabaseError(error)
           set({ error: response.error })
           return response
