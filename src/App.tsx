@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 function App() {
-  const basename = import.meta.env.PROD ? '/influencer_post_tracker' : ''
+  const basename = import.meta.env.PROD ? '/influencer_post_tracker' : '' 
   
   return (
     <ErrorBoundary>
