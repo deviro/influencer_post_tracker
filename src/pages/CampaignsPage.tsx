@@ -32,7 +32,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from '@/lib/utils'
 import { useCampaignStore } from '../store/campaignStore'
-import { type VideoLenient, type Platform, type VideoStatus, type CreateVideo, CreateVideoSchema } from '../lib/schemas'
+import { type VideoLenient, type Platform, type VideoStatus, type CreateVideo, type CreateInfluencer, CreateVideoSchema, CreateInfluencerSchema } from '../lib/schemas'
 
 const statusOptions: VideoStatus[] = ["Published", "Scheduled", "Draft", "Live", "Under Review", "Archived"]
 const platformOptions: Platform[] = ["YouTube", "Instagram", "TikTok", "Twitch"]
@@ -44,6 +44,7 @@ interface FormErrors {
   status?: string
   views?: string
   posted_on?: string
+  username?: string
   general?: string
 }
 
@@ -59,6 +60,9 @@ export function CampaignsPage() {
     updateVideo,
     createVideo,
     deleteVideo,
+    createInfluencer,
+    updateInfluencer,
+    deleteInfluencer,
     setInfluencers,
     setLoading,
     setVideos
@@ -83,10 +87,21 @@ export function CampaignsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [videoToDelete, setVideoToDelete] = useState<string | null>(null)
   
+  // Influencer editing states
+  const [isAddInfluencerDialogOpen, setIsAddInfluencerDialogOpen] = useState(false)
+  const [isDeleteInfluencerDialogOpen, setIsDeleteInfluencerDialogOpen] = useState(false)
+  const [influencerToDelete, setInfluencerToDelete] = useState<string | null>(null)
+  const [newInfluencer, setNewInfluencer] = useState<Partial<CreateInfluencer>>({
+    username: '',
+    link: '',
+    campaign_id: ''
+  })
+  
   // Form validation states
   const [formErrors, setFormErrors] = useState<FormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isDeletingInfluencer, setIsDeletingInfluencer] = useState(false)
   const [touched, setTouched] = useState<{[key: string]: boolean}>({})
 
   // Set default campaign ID (you can change this to the actual campaign ID you want to display)
@@ -408,6 +423,42 @@ export function CampaignsPage() {
     }
   }
 
+  // Local function to update influencer fields
+  const updateInfluencerField = async (influencerId: string, field: 'username' | 'link', value: string) => {
+    try {
+      // Basic validation
+      if (!value || value.trim() === '') {
+        throw new Error(`${field === 'username' ? 'Username' : 'Link'} cannot be empty`)
+      }
+      
+      if (field === 'link') {
+        try {
+          new URL(value)
+        } catch {
+          throw new Error('Must be a valid URL')
+        }
+      }
+      
+      // Update the influencer field
+      const result = await updateInfluencer(influencerId, { [field]: value.trim() })
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update influencer')
+      }
+      
+      // Clear any existing errors on successful operation
+      setError(null)
+      
+    } catch (error) {
+      console.error('Error updating influencer field:', error)
+      toast({
+        title: 'Error',
+        description: `Error updating ${field}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: 'destructive'
+      })
+    }
+  }
+
   // Local function to update video fields
   const updateVideoField = async (videoId: string, field: keyof VideoLenient, value: any) => {
     // Validate the field before updating
@@ -593,6 +644,143 @@ export function CampaignsPage() {
       })
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  // Influencer management functions
+  const handleAddInfluencer = () => {
+    setNewInfluencer({
+      username: '',
+      link: '',
+      campaign_id: currentCampaignId || defaultCampaignId
+    })
+    setFormErrors({})
+    setTouched({})
+    setIsAddInfluencerDialogOpen(true)
+  }
+
+  const handleSaveInfluencer = async () => {
+    if (!currentCampaignId) {
+      setFormErrors({ general: 'No campaign selected' })
+      return
+    }
+
+    // Validate form
+    const errors: FormErrors = {}
+    
+    if (!newInfluencer.username || newInfluencer.username.trim() === '') {
+      errors.username = 'Username is required'
+    }
+    
+    if (!newInfluencer.link || newInfluencer.link.trim() === '') {
+      errors.link = 'Link is required'
+    } else {
+      try {
+        new URL(newInfluencer.link)
+      } catch {
+        errors.link = 'Must be a valid URL'
+      }
+    }
+
+    // Validate using Zod schema
+    try {
+      const influencerData: CreateInfluencer = {
+        campaign_id: currentCampaignId,
+        username: newInfluencer.username!.trim(),
+        link: newInfluencer.link!.trim()
+      }
+      CreateInfluencerSchema.parse(influencerData)
+    } catch (zodError: any) {
+      console.error('Zod validation error:', zodError)
+      if (zodError.errors && Array.isArray(zodError.errors)) {
+        zodError.errors.forEach((err: any) => {
+          const field = err.path?.[0] as keyof FormErrors
+          if (field && !errors[field]) {
+            errors[field] = err.message || 'Invalid value'
+          }
+        })
+      } else {
+        errors.general = 'Validation failed. Please check your input.'
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
+      return
+    }
+
+    setIsSubmitting(true)
+    setFormErrors({})
+
+    try {
+      const influencerData: CreateInfluencer = {
+        campaign_id: currentCampaignId,
+        username: newInfluencer.username!.trim(),
+        link: newInfluencer.link!.trim()
+      }
+
+      const result = await createInfluencer(influencerData)
+      
+      if (result.success) {
+        // Clear any existing errors on successful operation
+        setError(null)
+        
+        setIsAddInfluencerDialogOpen(false)
+        setNewInfluencer({
+          username: '',
+          link: '',
+          campaign_id: ''
+        })
+        setFormErrors({})
+        setTouched({})
+      } else {
+        setFormErrors({ 
+          general: result.error || 'Failed to create influencer. Please try again.' 
+        })
+      }
+    } catch (error) {
+      console.error('Error creating influencer:', error)
+      setFormErrors({ 
+        general: 'An unexpected error occurred. Please try again.' 
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteInfluencer = (influencerId: string) => {
+    setInfluencerToDelete(influencerId)
+    setIsDeleteInfluencerDialogOpen(true)
+  }
+
+  const confirmDeleteInfluencer = async () => {
+    if (!influencerToDelete) return
+
+    setIsDeletingInfluencer(true)
+    try {
+      const result = await deleteInfluencer(influencerToDelete)
+      if (result.success) {
+        // Clear any existing errors on successful operation
+        setError(null)
+        
+        setIsDeleteInfluencerDialogOpen(false)
+        setInfluencerToDelete(null)
+      } else {
+        toast({
+          title: 'Error',
+          description: result.error || 'Failed to delete influencer',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      console.error('Error deleting influencer:', error)
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred while deleting the influencer',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsDeletingInfluencer(false)
     }
   }
 
@@ -884,7 +1072,7 @@ export function CampaignsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="max-w-sm"
               />
-              <Button>Add New Record</Button>
+              <Button onClick={handleAddInfluencer}>Add New Influencer</Button>
             </div>
             
             <Table>
@@ -900,6 +1088,7 @@ export function CampaignsPage() {
                   <TableHead className="text-right">Views Median</TableHead>
                   <TableHead className="text-right">Total Views</TableHead>
                   <TableHead className="text-right">Views Now</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -920,17 +1109,85 @@ export function CampaignsPage() {
                           )}
                         </Button>
                       </TableCell>
-                      <TableCell className="font-medium">{record.username || 'Unknown'}</TableCell>
+                      
+                      {/* Username - with edit icon */}
                       <TableCell>
-                        <a 
-                          href={record.link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline truncate block max-w-[200px]"
-                        >
-                          {record.link || 'No link'}
-                        </a>
+                        <div className="flex items-center gap-2">
+                          {isFieldEditing(record.id, 'username', 'field') ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={record.username || ''}
+                                onChange={(e) => updateInfluencerField(record.id, 'username', e.target.value)}
+                                className="text-sm w-40 h-6"
+                                onBlur={() => toggleFieldEdit(record.id, 'username', 'field')}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === 'Escape') {
+                                    toggleFieldEdit(record.id, 'username', 'field')
+                                  }
+                                }}
+                                autoFocus
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <span className="font-medium cursor-pointer hover:bg-gray-100 px-2 py-1 rounded transition-colors duration-200"
+                                    onClick={() => toggleFieldEdit(record.id, 'username', 'field')}>
+                                {record.username || 'Unknown'}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleFieldEdit(record.id, 'username', 'field')}
+                                className="h-4 w-4 p-0 opacity-50 hover:opacity-100 cursor-pointer"
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
+                      
+                      {/* Link - with edit icon */}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {isFieldEditing(record.id, 'link', 'field') ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={record.link || ''}
+                                onChange={(e) => updateInfluencerField(record.id, 'link', e.target.value)}
+                                className="text-sm w-56 h-6"
+                                onBlur={() => toggleFieldEdit(record.id, 'link', 'field')}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === 'Escape') {
+                                    toggleFieldEdit(record.id, 'link', 'field')
+                                  }
+                                }}
+                                autoFocus
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <a 
+                                href={record.link} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="w-56 h-6 text-blue-600 hover:text-blue-800 underline truncate block text-sm"
+                              >
+                                {record.link || 'No link'}
+                              </a>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleFieldEdit(record.id, 'link', 'field')}
+                                className="h-4 w-4 p-0 opacity-50 hover:opacity-100 cursor-pointer"
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                      
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {(record.platforms || []).map((platform, index) => (
@@ -951,6 +1208,16 @@ export function CampaignsPage() {
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         {formatViews(record.views_now || 0)}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteInfluencer(record.id)}
+                          className="h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                     {expandedRows.has(record.id) && (
@@ -1404,6 +1671,114 @@ export function CampaignsPage() {
               <Button variant="destructive" onClick={confirmDeleteVideo} disabled={isDeleting}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 {isDeleting ? 'Deleting...' : 'Delete Video'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Influencer Dialog */}
+        <Dialog open={isAddInfluencerDialogOpen} onOpenChange={setIsAddInfluencerDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Add New Influencer</DialogTitle>
+              <DialogDescription>
+                Add a new influencer to this campaign. Fill in the details below.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {/* General Error Alert */}
+            {formErrors.general && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{formErrors.general}</AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-start gap-4">
+                <label htmlFor="influencer-username" className="text-right pt-2">
+                  Username <span className="text-red-500">*</span>
+                </label>
+                <div className="col-span-3">
+                  <Input
+                    id="influencer-username"
+                    value={newInfluencer.username || ''}
+                    onChange={(e) => setNewInfluencer(prev => ({ ...prev, username: e.target.value }))}
+                    className={cn(
+                      "w-full",
+                      formErrors.username && "border-red-500 focus-visible:ring-red-500"
+                    )}
+                    placeholder="@username"
+                  />
+                  {formErrors.username && (
+                    <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {formErrors.username}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-4 items-start gap-4">
+                <label htmlFor="influencer-link" className="text-right pt-2">
+                  Link <span className="text-red-500">*</span>
+                </label>
+                <div className="col-span-3">
+                  <Input
+                    id="influencer-link"
+                    value={newInfluencer.link || ''}
+                    onChange={(e) => setNewInfluencer(prev => ({ ...prev, link: e.target.value }))}
+                    className={cn(
+                      "w-full",
+                      formErrors.link && "border-red-500 focus-visible:ring-red-500"
+                    )}
+                    placeholder="https://instagram.com/username"
+                  />
+                  {formErrors.link && (
+                    <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {formErrors.link}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsAddInfluencerDialogOpen(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSaveInfluencer} 
+                disabled={isSubmitting || !newInfluencer.username?.trim() || !newInfluencer.link?.trim()}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isSubmitting ? 'Saving...' : 'Save Influencer'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Influencer Dialog */}
+        <Dialog open={isDeleteInfluencerDialogOpen} onOpenChange={setIsDeleteInfluencerDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Delete Influencer</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this influencer and all their videos? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteInfluencerDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmDeleteInfluencer} disabled={isDeletingInfluencer}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                {isDeletingInfluencer ? 'Deleting...' : 'Delete Influencer'}
               </Button>
             </DialogFooter>
           </DialogContent>

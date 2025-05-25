@@ -239,8 +239,29 @@ export const useCampaignStore = create<CampaignState>()(
       },
 
       createInfluencer: async (influencer: CreateInfluencer) => {
-        set({ loading: true, error: null })
+        // Don't set loading state for smooth UX
         try {
+          // Create optimistic influencer with temporary ID
+          const tempId = `temp-${Date.now()}`
+          const optimisticInfluencer: InfluencerWithMetrics = {
+            id: tempId,
+            ...influencer,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            videos: [],
+            platforms: [],
+            video_count: 0,
+            views_median: 0,
+            total_views: 0,
+            views_now: 0
+          }
+
+          // Update UI immediately
+          set(state => ({
+            influencers: [optimisticInfluencer, ...state.influencers],
+          }))
+
+          // Then save to database
           const { data, error } = await supabase
             .from('influencers')
             .insert(influencer)
@@ -260,13 +281,19 @@ export const useCampaignStore = create<CampaignState>()(
             views_now: 0
           }
 
+          // Replace optimistic influencer with real data
           set(state => ({
-            influencers: [newInfluencerWithMetrics, ...state.influencers],
-            loading: false
+            influencers: state.influencers.map(inf => 
+              inf.id === tempId ? newInfluencerWithMetrics : inf
+            ),
           }))
           return handleSupabaseSuccess(validatedInfluencer)
         } catch (error) {
-          set({ loading: false })
+          // Rollback optimistic update on error
+          set(state => ({
+            influencers: state.influencers.filter(inf => !inf.id.startsWith('temp-')),
+          }))
+          
           const response = handleSupabaseError(error)
           set({ error: response.error })
           return response
@@ -274,8 +301,26 @@ export const useCampaignStore = create<CampaignState>()(
       },
 
       updateInfluencer: async (id: string, influencer: UpdateInfluencer) => {
-        set({ loading: true, error: null })
+        // Don't set loading state for smooth UX
         try {
+          // Store original influencer for potential rollback
+          const originalInfluencer = get().getInfluencerById(id)
+          
+          if (!originalInfluencer) {
+            throw new Error('Influencer not found')
+          }
+
+          // Create optimistic updated influencer
+          const optimisticInfluencer = { ...originalInfluencer, ...influencer, updated_at: new Date().toISOString() }
+          
+          // Optimistic update - update influencer immediately in UI
+          set(state => ({
+            influencers: state.influencers.map(inf => 
+              inf.id === id ? optimisticInfluencer : inf
+            ),
+          }))
+
+          // Then save to database
           const { data, error } = await supabase
             .from('influencers')
             .update(influencer)
@@ -286,17 +331,28 @@ export const useCampaignStore = create<CampaignState>()(
           if (error) throw error
 
           const validatedInfluencer = InfluencerSchema.parse(data)
+          
+          // Replace optimistic influencer with real data
           set(state => ({
             influencers: state.influencers.map(inf => 
               inf.id === id 
                 ? { ...inf, ...validatedInfluencer }
                 : inf
             ),
-            loading: false
           }))
           return handleSupabaseSuccess(validatedInfluencer)
         } catch (error) {
-          set({ loading: false })
+          // Rollback optimistic update on error - restore original influencer
+          const originalInfluencer = get().getInfluencerById(id)
+          
+          if (originalInfluencer) {
+            set(state => ({
+              influencers: state.influencers.map(inf => 
+                inf.id === id ? originalInfluencer : inf
+              ),
+            }))
+          }
+          
           const response = handleSupabaseError(error)
           set({ error: response.error })
           return response
@@ -304,8 +360,21 @@ export const useCampaignStore = create<CampaignState>()(
       },
 
       deleteInfluencer: async (id: string) => {
-        set({ loading: true, error: null })
+        // Don't set loading state for smooth UX
         try {
+          // Store the influencer for potential rollback
+          const influencerToDelete = get().getInfluencerById(id)
+
+          if (!influencerToDelete) {
+            throw new Error('Influencer not found')
+          }
+
+          // Optimistic update - remove influencer immediately from UI
+          set(state => ({
+            influencers: state.influencers.filter(inf => inf.id !== id),
+          }))
+
+          // Then delete from database
           const { error } = await supabase
             .from('influencers')
             .delete()
@@ -313,13 +382,17 @@ export const useCampaignStore = create<CampaignState>()(
 
           if (error) throw error
 
-          set(state => ({
-            influencers: state.influencers.filter(inf => inf.id !== id),
-            loading: false
-          }))
           return handleSupabaseSuccess(undefined)
         } catch (error) {
-          set({ loading: false })
+          // Rollback optimistic update on error - restore the influencer
+          const influencerToRestore = get().getInfluencerById(id)
+
+          if (influencerToRestore) {
+            set(state => ({
+              influencers: [influencerToRestore, ...state.influencers.filter(inf => inf.id !== id)],
+            }))
+          }
+          
           const response = handleSupabaseError(error)
           set({ error: response.error })
           return response
