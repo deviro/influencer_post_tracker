@@ -165,8 +165,23 @@ export const useCampaignStore = create<CampaignState>()(
 
       // Create operations
       createCampaign: async (campaign: CreateCampaign) => {
-        set({ loading: true, error: null })
+        // Don't set loading state for smooth UX
         try {
+          // Create optimistic campaign with temporary ID
+          const tempId = `temp-${Date.now()}`
+          const optimisticCampaign: Campaign = {
+            id: tempId,
+            ...campaign,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+
+          // Update UI immediately
+          set(state => ({ 
+            campaigns: [optimisticCampaign, ...state.campaigns]
+          }))
+
+          // Then save to database
           const { data, error } = await supabase
             .from('campaigns')
             .insert(campaign)
@@ -176,13 +191,20 @@ export const useCampaignStore = create<CampaignState>()(
           if (error) throw error
 
           const validatedCampaign = CampaignSchema.parse(data)
+          
+          // Replace optimistic campaign with real data
           set(state => ({ 
-            campaigns: [validatedCampaign, ...state.campaigns],
-            loading: false 
+            campaigns: state.campaigns.map(c => 
+              c.id === tempId ? validatedCampaign : c
+            )
           }))
           return handleSupabaseSuccess(validatedCampaign)
         } catch (error) {
-          set({ loading: false })
+          // Rollback optimistic update on error
+          set(state => ({
+            campaigns: state.campaigns.filter(c => !c.id.startsWith('temp-'))
+          }))
+          
           const response = handleSupabaseError(error)
           set({ error: response.error })
           return response
@@ -216,8 +238,21 @@ export const useCampaignStore = create<CampaignState>()(
       },
 
       deleteCampaign: async (id: string) => {
-        set({ loading: true, error: null })
+        // Don't set loading state for smooth UX
+        // Store original campaign for potential rollback
+        const originalCampaign = get().campaigns.find(c => c.id === id)
+        
         try {
+          if (!originalCampaign) {
+            throw new Error('Campaign not found')
+          }
+
+          // Optimistic update - remove campaign immediately from UI
+          set(state => ({
+            campaigns: state.campaigns.filter(c => c.id !== id)
+          }))
+
+          // Then delete from database
           const { error } = await supabase
             .from('campaigns')
             .delete()
@@ -225,13 +260,20 @@ export const useCampaignStore = create<CampaignState>()(
 
           if (error) throw error
 
-          set(state => ({
-            campaigns: state.campaigns.filter(c => c.id !== id),
-            loading: false
-          }))
           return handleSupabaseSuccess(undefined)
         } catch (error) {
-          set({ loading: false })
+          // Rollback optimistic update on error - restore original campaign
+          if (originalCampaign) {
+            set(state => ({
+              campaigns: [...state.campaigns, originalCampaign].sort((a, b) => 
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              )
+            }))
+          } else {
+            // If we don't have the original, try to fetch campaigns again
+            get().fetchCampaigns()
+          }
+          
           const response = handleSupabaseError(error)
           set({ error: response.error })
           return response

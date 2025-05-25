@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { ChevronDown, ChevronRight, Edit, Plus, Trash2, Save, AlertCircle, RefreshCw } from "lucide-react"
+import { ChevronDown, ChevronRight, Edit, Plus, Trash2, Save, AlertCircle, RefreshCw, Home, X } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -50,11 +50,13 @@ interface FormErrors {
 
 export function CampaignsPage() {
   const {
+    campaigns,
     influencers,
     loading,
     error,
     currentCampaignId,
     fetchInfluencersForCampaign,
+    fetchCampaigns,
     setCurrentCampaignId,
     setError,
     updateVideo,
@@ -65,10 +67,12 @@ export function CampaignsPage() {
     deleteInfluencer,
     setInfluencers,
     setLoading,
-    setVideos
+    setVideos,
+    deleteCampaign
   } = useCampaignStore()
 
   const { toast } = useToast()
+  const navigate = useNavigate()
 
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<VideoStatus | 'All'>('All')
@@ -108,6 +112,10 @@ export function CampaignsPage() {
   const [isDeletingInfluencer, setIsDeletingInfluencer] = useState(false)
   const [touched, setTouched] = useState<{[key: string]: boolean}>({})
 
+  // Get current campaign name
+  const currentCampaign = campaigns.find(campaign => campaign.id === currentCampaignId)
+  const campaignName = currentCampaign?.name || 'Unknown Campaign'
+
   // Set default campaign ID (you can change this to the actual campaign ID you want to display)
   const defaultCampaignId = '550e8400-e29b-41d4-a716-446655440000'
 
@@ -116,6 +124,11 @@ export function CampaignsPage() {
       try {
         // Clear any previous errors when component mounts
         setError(null)
+        
+        // Fetch campaigns if not already loaded
+        if (campaigns.length === 0) {
+          await fetchCampaigns()
+        }
         
         if (!currentCampaignId) {
           setCurrentCampaignId(defaultCampaignId)
@@ -143,7 +156,7 @@ export function CampaignsPage() {
     }
 
     loadData()
-  }, [currentCampaignId, fetchInfluencersForCampaign, setCurrentCampaignId, setError, setLoading, toast])
+  }, [currentCampaignId, fetchInfluencersForCampaign, fetchCampaigns, setCurrentCampaignId, setError, setLoading, toast, campaigns.length])
 
   // Clear error when user navigates to the page
   useEffect(() => {
@@ -758,12 +771,14 @@ export function CampaignsPage() {
     setIsDeletingInfluencer(true)
     try {
       const result = await deleteInfluencer(influencerToDelete)
+      
       if (result.success) {
-        // Clear any existing errors on successful operation
-        setError(null)
-        
         setIsDeleteInfluencerDialogOpen(false)
         setInfluencerToDelete(null)
+        toast({
+          title: 'Success',
+          description: 'Influencer deleted successfully',
+        })
       } else {
         toast({
           title: 'Error',
@@ -775,7 +790,7 @@ export function CampaignsPage() {
       console.error('Error deleting influencer:', error)
       toast({
         title: 'Error',
-        description: 'An unexpected error occurred while deleting the influencer',
+        description: 'An unexpected error occurred',
         variant: 'destructive'
       })
     } finally {
@@ -1132,15 +1147,24 @@ export function CampaignsPage() {
           </div>
         )}
         
-        <div className="mb-4">
-          <Link to="/" className="text-blue-600 hover:text-blue-800">← Back to Home</Link>
-        </div>
-        
         <Card>
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-center">
-              Campaign Details
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2"
+              >
+                <Home className="h-4 w-4" />
+                Back to Home
+              </Button>
+              
+              <CardTitle className="text-3xl font-bold text-center">
+                {campaignName}
+              </CardTitle>
+              
+              <div></div> {/* Empty div for spacing */}
+            </div>
           </CardHeader>
           <CardContent>
             {/* Campaign Totals Section */}
